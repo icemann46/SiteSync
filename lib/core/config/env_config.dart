@@ -9,6 +9,11 @@ class EnvConfig {
     defaultValue: '',
   );
 
+  static const String authRedirectUrl = String.fromEnvironment(
+    'AUTH_REDIRECT_URL',
+    defaultValue: '',
+  );
+
   static void validate() {
     if (supabaseUrl.isEmpty) {
       throw Exception('SUPABASE_URL is not set. Please pass --dart-define-from-file.');

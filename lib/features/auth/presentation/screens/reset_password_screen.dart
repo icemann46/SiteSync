@@ -5,23 +5,24 @@ import 'package:go_router/go_router.dart';
 import '../providers/auth_provider.dart';
 import '../utils/auth_error_text.dart';
 
-class LoginScreen extends ConsumerStatefulWidget {
-  const LoginScreen({super.key});
+class ResetPasswordScreen extends ConsumerStatefulWidget {
+  const ResetPasswordScreen({super.key});
 
   @override
-  ConsumerState<LoginScreen> createState() => _LoginScreenState();
+  ConsumerState<ResetPasswordScreen> createState() => _ResetPasswordScreenState();
 }
 
-class _LoginScreenState extends ConsumerState<LoginScreen> {
+class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _confirmPasswordController = TextEditingController();
   var _isSubmitting = false;
+  var _passwordUpdated = false;
 
   @override
   void dispose() {
-    _emailController.dispose();
     _passwordController.dispose();
+    _confirmPasswordController.dispose();
     super.dispose();
   }
 
@@ -32,13 +33,19 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
     setState(() {
       _isSubmitting = true;
+      _passwordUpdated = false;
     });
 
     try {
-      await ref.read(authControllerProvider.notifier).signIn(
-            email: _emailController.text,
+      await ref.read(authControllerProvider.notifier).updatePassword(
             password: _passwordController.text,
           );
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _passwordUpdated = true;
+      });
     } catch (error) {
       if (!mounted) {
         return;
@@ -70,45 +77,56 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     Text(
-                      'SiteSync',
-                      style: Theme.of(context).textTheme.displaySmall,
+                      'Choose a new password',
+                      style: Theme.of(context).textTheme.headlineMedium,
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'Log in to manage your build workspace.',
-                      style: Theme.of(context).textTheme.bodyLarge,
+                      'Use the reset link from your email before setting a new password.',
+                      style: Theme.of(context).textTheme.bodyMedium,
                     ),
-                    const SizedBox(height: 32),
-                    TextFormField(
-                      controller: _emailController,
-                      keyboardType: TextInputType.emailAddress,
-                      textInputAction: TextInputAction.next,
-                      decoration: const InputDecoration(
-                        labelText: 'Email',
-                        prefixIcon: Icon(Icons.email_outlined),
-                      ),
-                      validator: _validateEmail,
-                    ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 24),
                     TextFormField(
                       controller: _passwordController,
                       obscureText: true,
-                      textInputAction: TextInputAction.done,
+                      textInputAction: TextInputAction.next,
                       decoration: const InputDecoration(
-                        labelText: 'Password',
+                        labelText: 'New password',
                         prefixIcon: Icon(Icons.lock_outline),
                       ),
                       validator: _validatePassword,
+                    ),
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      controller: _confirmPasswordController,
+                      obscureText: true,
+                      textInputAction: TextInputAction.done,
+                      decoration: const InputDecoration(
+                        labelText: 'Confirm password',
+                        prefixIcon: Icon(Icons.lock_outline),
+                      ),
+                      validator: _validatePasswordConfirmation,
                       onFieldSubmitted: (_) => _submit(),
                     ),
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: TextButton(
-                        onPressed: _isSubmitting ? null : () => context.go('/forgot-password'),
-                        child: const Text('Forgot password?'),
+                    if (_passwordUpdated) ...[
+                      const SizedBox(height: 16),
+                      DecoratedBox(
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).colorScheme.secondaryContainer,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Text(
+                            'Password updated. You can continue in SiteSync.',
+                            style: TextStyle(
+                              color: Theme.of(context).colorScheme.onSecondaryContainer,
+                            ),
+                          ),
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 8),
+                    ],
+                    const SizedBox(height: 24),
                     FilledButton(
                       onPressed: _isSubmitting ? null : _submit,
                       child: _isSubmitting
@@ -116,12 +134,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                               dimension: 18,
                               child: CircularProgressIndicator(strokeWidth: 2),
                             )
-                          : const Text('Log in'),
+                          : const Text('Update password'),
                     ),
-                    const SizedBox(height: 8),
-                    OutlinedButton(
-                      onPressed: _isSubmitting ? null : () => context.go('/signup'),
-                      child: const Text('Create account'),
+                    TextButton(
+                      onPressed: _isSubmitting ? null : () => context.go('/login'),
+                      child: const Text('Back to login'),
                     ),
                   ],
                 ),
@@ -132,22 +149,22 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       ),
     );
   }
-}
 
-String? _validateEmail(String? value) {
-  final email = value?.trim() ?? '';
-  if (email.isEmpty) {
-    return 'Enter your email.';
+  String? _validatePasswordConfirmation(String? value) {
+    final baseError = _validatePassword(value);
+    if (baseError != null) {
+      return baseError;
+    }
+    if (value != _passwordController.text) {
+      return 'Passwords must match.';
+    }
+    return null;
   }
-  if (!email.contains('@')) {
-    return 'Enter a valid email.';
-  }
-  return null;
 }
 
 String? _validatePassword(String? value) {
-  if ((value ?? '').isEmpty) {
-    return 'Enter your password.';
+  if ((value ?? '').length < 6) {
+    return 'Use at least 6 characters.';
   }
   return null;
 }
